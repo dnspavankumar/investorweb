@@ -6,35 +6,35 @@
 
 @layer base {
   :root {
-    --background: 0 0% 92%;
-    --foreground: 0 0% 7%;
-    --card: 0 0% 92%;
-    --card-foreground: 0 0% 7%;
-    --popover: 0 0% 92%;
-    --popover-foreground: 0 0% 7%;
-    --primary: 14 100% 50%;
+    --background: 0 0% 97.6%;
+    --foreground: 213 40% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 213 40% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 40% 17%;
+    --primary: 213 40% 17%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 85%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 85%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 14 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 145 63% 49%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 20% 92%;
+    --muted-foreground: 213 15% 45%;
+    --accent: 48 88% 50%;
+    --accent-foreground: 213 40% 17%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 7%;
-    --input: 0 0% 7%;
-    --ring: 14 100% 50%;
-    --radius: 0rem;
+    --border: 213 25% 80%;
+    --input: 213 25% 80%;
+    --ring: 145 63% 49%;
+    --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 92%;
-    --sidebar-foreground: 0 0% 7%;
-    --sidebar-primary: 14 100% 50%;
+    --sidebar-background: 213 40% 17%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 145 63% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 85%;
-    --sidebar-accent-foreground: 0 0% 7%;
-    --sidebar-border: 0 0% 7%;
-    --sidebar-ring: 14 100% 50%;
+    --sidebar-accent: 213 35% 25%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 213 30% 30%;
+    --sidebar-ring: 145 63% 49%;
 
     --font-display: 'Space Grotesk', sans-serif;
     --font-mono: 'IBM Plex Mono', monospace;
@@ -45,7 +45,6 @@
 @layer base {
   * {
     @apply border-border;
-    border-radius: 0 !important;
   }
 
   body {
@@ -82,7 +81,7 @@
 
 /* Typing cursor blink */
 @keyframes blink-caret {
-  0%, 100% { border-color: hsl(var(--primary)); }
+  0%, 100% { border-color: hsl(var(--secondary)); }
   50% { border-color: transparent; }
 }
 
@@ -109,9 +108,9 @@
 
 /* Pulse ring */
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
-  70% { box-shadow: 0 0 0 8px hsl(var(--primary) / 0); }
-  100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  0% { box-shadow: 0 0 0 0 hsl(var(--secondary) / 0.5); }
+  70% { box-shadow: 0 0 0 8px hsl(var(--secondary) / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--secondary) / 0); }
 }
 
 /* Marquee */
@@ -129,7 +128,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: hsl(var(--primary));
+  background: hsl(var(--secondary));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0ms;
@@ -164,7 +163,7 @@
 /* Score bar */
 .score-bar {
   height: 4px;
-  background: hsl(var(--secondary));
+  background: hsl(var(--muted));
   position: relative;
   overflow: hidden;
 }
@@ -173,7 +172,7 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: hsl(var(--primary));
+  background: hsl(var(--secondary));
   animation: fill-bar 1s ease-out forwards;
   animation-delay: var(--delay, 0s);
 }
@@ -182,8 +181,9 @@
 .live-dot {
   width: 6px;
   height: 6px;
-  background: hsl(var(--primary));
+  background: hsl(var(--secondary));
   display: inline-block;
+  border-radius: 50%;
   animation: pulse-ring 1.5s infinite;
 }
 
@@ -208,7 +208,7 @@
 
 /* Typing cursor */
 .typing-cursor {
-  border-right: 2px solid hsl(var(--primary));
+  border-right: 2px solid hsl(var(--secondary));
   animation: blink-caret 0.8s step-end infinite;
   padding-right: 2px;
 }

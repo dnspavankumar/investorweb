@@ -9,27 +9,30 @@ const SiteHeader = () => {
   }, []);
 
   return (
-    <header className="border-b border-foreground">
-      <div className="flex">
+    <header className="bg-primary text-primary-foreground">
+      <div className="flex items-center justify-between px-6 py-4">
         {/* Logo */}
-        <div className="grid-cell flex-1 flex items-baseline gap-3 border-r border-foreground">
-          <h1 className="font-display text-xl sm:text-2xl uppercase tracking-tight glitch-hover">
-            AI<span className="text-primary">_INVESTOR</span>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-accent rounded-md flex items-center justify-center">
+            <span className="font-display text-accent-foreground text-sm font-bold">AI</span>
+          </div>
+          <h1 className="font-display text-xl sm:text-2xl uppercase tracking-tight">
+            AI<span className="text-secondary">_INVESTOR</span>
           </h1>
           <div className="live-dot hidden sm:inline-block" />
         </div>
 
         {/* Clock */}
-        <div className="grid-cell flex items-center gap-3 font-mono text-xs text-muted-foreground uppercase tracking-widest" style={{ padding: "0.75rem var(--cell-padding)" }}>
+        <div className="flex items-center gap-3 font-mono text-xs uppercase tracking-widest opacity-70">
           <span className="hidden sm:inline">SYS_TIME</span>
-          <span className="text-foreground tabular-nums">
+          <span className="tabular-nums text-primary-foreground">
             {time.toLocaleTimeString("en-US", { hour12: false })}
           </span>
         </div>
       </div>
 
       {/* Scrolling ticker */}
-      <div className="border-t border-foreground overflow-hidden bg-foreground text-background" style={{ padding: "6px 0" }}>
+      <div className="overflow-hidden bg-secondary text-secondary-foreground" style={{ padding: "6px 0" }}>
         <div className="marquee-track">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="flex gap-8 px-4 font-mono text-[10px] uppercase tracking-widest whitespace-nowrap">
