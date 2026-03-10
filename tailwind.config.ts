@@ -7,12 +7,16 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "0",
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
+      fontFamily: {
+        display: ["Space Grotesk", "sans-serif"],
+        mono: ["IBM Plex Mono", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -59,26 +63,18 @@ export default {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "0",
+        md: "0",
+        sm: "0",
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
