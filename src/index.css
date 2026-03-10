@@ -163,7 +163,7 @@
 /* Score bar */
 .score-bar {
   height: 4px;
-  background: hsl(var(--secondary));
+  background: hsl(var(--muted));
   position: relative;
   overflow: hidden;
 }
@@ -172,7 +172,7 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: hsl(var(--primary));
+  background: hsl(var(--secondary));
   animation: fill-bar 1s ease-out forwards;
   animation-delay: var(--delay, 0s);
 }
