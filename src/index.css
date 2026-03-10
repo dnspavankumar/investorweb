@@ -81,7 +81,7 @@
 
 /* Typing cursor blink */
 @keyframes blink-caret {
-  0%, 100% { border-color: hsl(var(--primary)); }
+  0%, 100% { border-color: hsl(var(--secondary)); }
   50% { border-color: transparent; }
 }
 
