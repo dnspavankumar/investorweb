@@ -47,22 +47,22 @@ const Index = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="lg:col-span-3 grid-cell flex flex-col justify-center min-h-[70vh] lg:min-h-[80vh] lg:border-r border-foreground relative"
+          className="lg:col-span-3 p-8 sm:p-12 lg:p-16 flex flex-col justify-center min-h-[70vh] lg:min-h-[80vh] lg:border-r border-border relative bg-card"
         >
           {/* Corner decoration */}
-          <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-primary opacity-50" />
-          <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-primary opacity-50" />
+          <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-secondary opacity-50 rounded-tl-md" />
+          <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-secondary opacity-50 rounded-br-md" />
 
           <motion.p
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="font-mono text-xs text-primary uppercase tracking-[0.3em] mb-8"
+            className="font-mono text-xs text-secondary uppercase tracking-[0.3em] mb-8"
           >
             ■ SYSTEM v0.1 — ONLINE
           </motion.p>
 
-          <h2 className="font-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl uppercase leading-[0.9] mb-4">
+          <h2 className="font-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl uppercase leading-[0.9] mb-4 text-primary">
             <motion.span
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -75,7 +75,7 @@ const Index = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="block text-primary"
+              className="block text-secondary"
             >
               INVESTOR
             </motion.span>
@@ -87,7 +87,7 @@ const Index = () => {
             transition={{ delay: 1.2 }}
             className="font-mono text-sm text-muted-foreground h-6 mb-10"
           >
-            <span className="text-primary">→ </span>
+            <span className="text-secondary">→ </span>
             <TypingText
               texts={[
                 "AI-powered startup-investor matchmaking",
@@ -105,9 +105,9 @@ const Index = () => {
           >
             <Link
               to="/submit"
-              className="inline-flex items-center gap-3 bg-primary text-primary-foreground font-mono text-sm uppercase tracking-widest px-8 py-5 border border-foreground hover:bg-foreground hover:text-background transition-none group"
+              className="inline-flex items-center gap-3 bg-accent text-accent-foreground font-mono text-sm uppercase tracking-widest px-8 py-5 rounded-md hover:brightness-110 transition-all group shadow-lg"
             >
-              <span className="inline-block w-2 h-2 bg-primary-foreground group-hover:bg-background" />
+              <span className="inline-block w-2 h-2 bg-accent-foreground rounded-full group-hover:scale-125 transition-transform" />
               SUBMIT YOUR STARTUP
             </Link>
           </motion.div>
@@ -118,14 +118,14 @@ const Index = () => {
           {features.map((item) => (
             <div
               key={item.id}
-              className="grid-cell border-b border-foreground blueprint-flash flex-1 flex flex-col justify-center min-h-[120px]"
+              className="p-6 border-b border-border blueprint-flash flex-1 flex flex-col justify-center min-h-[120px] bg-card hover:bg-muted transition-colors"
               data-tag={item.tag}
             >
               <div className="flex items-baseline gap-3 mb-2">
-                <span className="font-mono text-[10px] text-primary font-semibold tracking-widest">
+                <span className="font-mono text-[10px] text-secondary font-semibold tracking-widest">
                   {item.id}
                 </span>
-                <h3 className="font-display text-base uppercase">{item.title}</h3>
+                <h3 className="font-display text-base uppercase text-primary">{item.title}</h3>
               </div>
               <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
                 {item.desc}
@@ -136,7 +136,7 @@ const Index = () => {
       </div>
 
       {/* STATS BAR */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-foreground bg-foreground text-background">
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-border bg-primary text-primary-foreground">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -144,10 +144,10 @@ const Index = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: i * 0.1 }}
-            className={`grid-cell text-center border-foreground ${i < stats.length - 1 ? "border-r" : ""}`}
-            style={{ borderColor: "hsl(var(--muted-foreground))", padding: "2rem var(--cell-padding)" }}
+            className={`text-center ${i < stats.length - 1 ? "border-r border-primary-foreground/20" : ""}`}
+            style={{ padding: "2rem var(--cell-padding)" }}
           >
-            <p className="font-display text-3xl sm:text-4xl text-primary mb-1">
+            <p className="font-display text-3xl sm:text-4xl text-accent mb-1">
               <AnimatedCounter target={stat.value} suffix={stat.suffix} />
             </p>
             <p className="font-mono text-[10px] tracking-widest opacity-60">{stat.label}</p>
@@ -156,7 +156,7 @@ const Index = () => {
       </div>
 
       {/* WORKFLOW */}
-      <div className="grid-cell border-b border-foreground">
+      <div className="p-8 sm:p-12 border-b border-border bg-card">
         <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-6">
           // SYSTEM_WORKFLOW
         </p>
@@ -177,10 +177,10 @@ const Index = () => {
               transition={{ delay: i * 0.08 }}
               className="flex items-center gap-2 py-2"
             >
-              <span className="font-display text-3xl text-primary leading-none">
+              <span className="font-display text-3xl text-secondary leading-none">
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-wider">{step}</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-primary">{step}</span>
               {i < 5 && <span className="font-mono text-muted-foreground ml-auto hidden lg:inline">→</span>}
             </motion.div>
           ))}
@@ -188,12 +188,12 @@ const Index = () => {
       </div>
 
       {/* BOTTOM TECH BAR */}
-      <div className="grid grid-cols-4 border-b border-foreground">
+      <div className="grid grid-cols-4 border-b border-border bg-muted">
         {["REACT.JS", "TAILWIND", "AI AGENTS", "GROQ API"].map((tech, i) => (
           <div
             key={tech}
             className={`text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground ${
-              i < 3 ? "border-r border-foreground" : ""
+              i < 3 ? "border-r border-border" : ""
             }`}
             style={{ padding: "1rem" }}
           >

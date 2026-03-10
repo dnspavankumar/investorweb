@@ -10,7 +10,7 @@ const SiteNav = () => {
   const location = useLocation();
 
   return (
-    <nav className="border-b border-foreground">
+    <nav className="border-b border-border bg-card">
       <div className="flex">
         {links.map((link, i) => {
           const isActive = location.pathname === link.to;
@@ -18,11 +18,11 @@ const SiteNav = () => {
             <Link
               key={link.to}
               to={link.to}
-              className={`flex-1 flex items-center justify-between font-mono text-xs uppercase tracking-widest transition-none ${
+              className={`flex-1 flex items-center justify-between font-mono text-xs uppercase tracking-widest transition-colors ${
                 isActive
                   ? "bg-primary text-primary-foreground"
-                  : "bg-background text-foreground hover:bg-foreground hover:text-background"
-              } ${i < links.length - 1 ? "border-r border-foreground" : ""}`}
+                  : "bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
+              } ${i < links.length - 1 ? "border-r border-border" : ""}`}
               style={{ padding: "0.75rem var(--cell-padding)" }}
             >
               <span className="font-display text-sm">{link.label}</span>
