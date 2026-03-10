@@ -208,7 +208,7 @@
 
 /* Typing cursor */
 .typing-cursor {
-  border-right: 2px solid hsl(var(--primary));
+  border-right: 2px solid hsl(var(--secondary));
   animation: blink-caret 0.8s step-end infinite;
   padding-right: 2px;
 }
