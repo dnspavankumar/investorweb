@@ -128,7 +128,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: hsl(var(--primary));
+  background: hsl(var(--secondary));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0ms;
