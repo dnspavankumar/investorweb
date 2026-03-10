@@ -181,8 +181,9 @@
 .live-dot {
   width: 6px;
   height: 6px;
-  background: hsl(var(--primary));
+  background: hsl(var(--secondary));
   display: inline-block;
+  border-radius: 50%;
   animation: pulse-ring 1.5s infinite;
 }
 
