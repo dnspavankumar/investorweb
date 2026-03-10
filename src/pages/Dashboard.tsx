@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { ArrowLeft, Copy, Pencil, Check, Undo2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface StartupProfile {
   name: string;
@@ -34,23 +36,28 @@ const strategies = [
   { id: "03", title: "STAGED FUNDING", desc: "Consider a convertible note or SAFE for initial rounds before a priced equity round." },
 ];
 
-const sampleEmail = `Subject: Partnership Opportunity — [STARTUP_NAME] x [INVESTOR_NAME]
+const generateEmail = (profile: StartupProfile, investor: InvestorMatch) =>
+  `Subject: Partnership Opportunity — ${profile.name} x ${investor.name}
 
-Dear [INVESTOR],
+Dear ${investor.name},
 
-I'm reaching out regarding [STARTUP_NAME], a [INDUSTRY] startup currently at the [STAGE] stage. We are building [DESCRIPTION].
+I'm reaching out regarding ${profile.name}, a ${profile.industry} startup currently at the ${profile.stage} stage. We are building ${profile.description}.
 
-We are seeking [FUNDING] in funding to accelerate growth and expand our market reach. Given your portfolio focus on [PREFERRED_INDUSTRY], we believe there is strong alignment.
+We are seeking $${Number(profile.funding).toLocaleString()} in funding to accelerate growth and expand our market reach. Given your portfolio focus on ${investor.preferred_industry}, we believe there is strong alignment.
 
 I would welcome the opportunity to discuss this further at your convenience.
 
 Best regards,
-[FOUNDER_NAME]`;
+Founder`;
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<StartupProfile | null>(null);
   const [selectedInvestor, setSelectedInvestor] = useState<number>(0);
   const [showEmail, setShowEmail] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [emailText, setEmailText] = useState("");
+  const [emailHistory, setEmailHistory] = useState<string[]>([]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("startup_profile");
@@ -59,6 +66,45 @@ const Dashboard = () => {
       setTimeout(() => setShowEmail(true), 800);
     }
   }, []);
+
+  // Generate email when profile or investor changes
+  useEffect(() => {
+    if (profile) {
+      const selected = mockInvestors[selectedInvestor];
+      const generated = generateEmail(profile, selected);
+      setEmailText(generated);
+      setEmailHistory([generated]);
+      setIsEditing(false);
+    }
+  }, [profile, selectedInvestor]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(emailText);
+    toast.success("Email copied to clipboard!");
+  }, [emailText]);
+
+  const handleEdit = () => {
+    if (isEditing) {
+      // Save: push current text to history
+      setEmailHistory((prev) => [...prev, emailText]);
+      setIsEditing(false);
+      toast.success("Email saved!");
+    } else {
+      setIsEditing(true);
+    }
+  };
+
+  const handleUndo = () => {
+    if (emailHistory.length > 1) {
+      const prev = [...emailHistory];
+      prev.pop();
+      setEmailHistory(prev);
+      setEmailText(prev[prev.length - 1]);
+      toast("Undo successful");
+    } else {
+      toast("Nothing to undo");
+    }
+  };
 
   if (!profile) {
     return (
@@ -84,6 +130,24 @@ const Dashboard = () => {
 
   return (
     <div>
+      {/* Top bar with undo */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
+        <button
+          onClick={() => navigate("/submit")}
+          className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          BACK TO FORM
+        </button>
+        <button
+          onClick={handleUndo}
+          className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest border border-border px-4 py-2 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+        >
+          <Undo2 className="w-4 h-4" />
+          UNDO
+        </button>
+      </div>
+
       {/* Profile summary */}
       <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-border bg-primary text-primary-foreground">
         {[
@@ -135,7 +199,6 @@ const Dashboard = () => {
                   </span>
                   <span className="font-mono text-[9px] uppercase opacity-70">{inv.ticket_size}</span>
                 </div>
-                {/* Score bar */}
                 <div className="score-bar rounded-sm">
                   <div
                     className="score-bar-fill"
@@ -171,32 +234,57 @@ const Dashboard = () => {
 
           {/* Email */}
           <div className="p-6 sm:p-8 border-b border-border">
-            <div className="flex items-baseline justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
               <p className="font-mono text-[10px] text-secondary uppercase tracking-[0.3em]">
-                ■ GENERATED_EMAIL
+                ■ PROFESSIONAL_EMAIL
               </p>
-              <button className="font-mono text-[10px] uppercase tracking-widest border border-border px-3 py-1 rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors">
-                COPY
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUndo}
+                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest border border-border px-3 py-1.5 rounded-sm hover:bg-muted transition-colors"
+                  title="Undo last edit"
+                >
+                  <Undo2 className="w-3 h-3" />
+                  UNDO
+                </button>
+                <button
+                  onClick={handleEdit}
+                  className={`inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest border px-3 py-1.5 rounded-sm transition-colors ${
+                    isEditing
+                      ? "border-secondary bg-secondary text-secondary-foreground"
+                      : "border-border hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                  {isEditing ? "SAVE" : "EDIT"}
+                </button>
+                <button
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest border border-border px-3 py-1.5 rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <Copy className="w-3 h-3" />
+                  COPY
+                </button>
+              </div>
             </div>
             {showEmail && (
-              <motion.pre
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
-                className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-primary bg-muted border border-border p-4 rounded-md"
               >
-                {sampleEmail
-                  .split("[STARTUP_NAME]").join(profile.name)
-                  .replace("[INVESTOR_NAME]", selected.name)
-                  .replace("[INVESTOR]", selected.name)
-                  .replace("[INDUSTRY]", profile.industry)
-                  .replace("[STAGE]", profile.stage)
-                  .replace("[DESCRIPTION]", profile.description)
-                  .replace("[FUNDING]", `$${Number(profile.funding).toLocaleString()}`)
-                  .replace("[PREFERRED_INDUSTRY]", selected.preferred_industry)
-                  .replace("[FOUNDER_NAME]", "Founder")}
-              </motion.pre>
+                {isEditing ? (
+                  <textarea
+                    value={emailText}
+                    onChange={(e) => setEmailText(e.target.value)}
+                    className="w-full font-mono text-xs leading-relaxed whitespace-pre-wrap text-primary bg-background border-2 border-secondary p-4 rounded-md min-h-[280px] focus:outline-none focus:ring-2 focus:ring-secondary resize-y"
+                  />
+                ) : (
+                  <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-primary bg-muted border border-border p-4 rounded-md">
+                    {emailText}
+                  </pre>
+                )}
+              </motion.div>
             )}
           </div>
 
