@@ -1,9 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
 
 const links = [
-  { to: "/", label: "00_LANDING" },
-  { to: "/submit", label: "01_SUBMIT_STARTUP" },
-  { to: "/dashboard", label: "02_DASHBOARD" },
+  { to: "/", label: "00_LANDING", desc: "HOME" },
+  { to: "/submit", label: "01_SUBMIT", desc: "STARTUP FORM" },
+  { to: "/dashboard", label: "02_RESULTS", desc: "MATCHES" },
 ];
 
 const SiteNav = () => {
@@ -11,21 +11,24 @@ const SiteNav = () => {
 
   return (
     <nav className="border-b border-foreground">
-      <div className="flex flex-col sm:flex-row">
+      <div className="flex">
         {links.map((link, i) => {
           const isActive = location.pathname === link.to;
           return (
             <Link
               key={link.to}
               to={link.to}
-              className={`grid-cell flex-1 font-mono text-xs uppercase tracking-widest transition-none ${
+              className={`flex-1 flex items-center justify-between font-mono text-xs uppercase tracking-widest transition-none ${
                 isActive
                   ? "bg-primary text-primary-foreground"
-                  : "bg-background text-foreground hover:bg-primary hover:text-primary-foreground"
-              } ${i < links.length - 1 ? "sm:border-r border-foreground" : ""}`}
-              style={{ padding: "1rem var(--cell-padding)" }}
+                  : "bg-background text-foreground hover:bg-foreground hover:text-background"
+              } ${i < links.length - 1 ? "border-r border-foreground" : ""}`}
+              style={{ padding: "0.75rem var(--cell-padding)" }}
             >
-              {link.label}
+              <span className="font-display text-sm">{link.label}</span>
+              <span className={`hidden sm:inline text-[10px] ${isActive ? "opacity-80" : "text-muted-foreground"}`}>
+                {link.desc}
+              </span>
             </Link>
           );
         })}
