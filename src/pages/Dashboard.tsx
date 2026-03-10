@@ -190,7 +190,7 @@ const Dashboard = () => {
                 className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground bg-secondary border border-foreground p-4"
               >
                 {sampleEmail
-                  .replaceAll("[STARTUP_NAME]", profile.name)
+                  .split("[STARTUP_NAME]").join(profile.name)
                   .replace("[INVESTOR_NAME]", selected.name)
                   .replace("[INVESTOR]", selected.name)
                   .replace("[INDUSTRY]", profile.industry)
