@@ -1,356 +1,559 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { ArrowLeft, ArrowRight, Check, ChevronRight } from "lucide-react";
 
 const industries = [
-  "FINTECH", "HEALTHTECH", "EDTECH", "AGRITECH", "SAAS",
-  "E-COMMERCE", "AI/ML", "CLEANTECH", "BIOTECH", "OTHER",
+  "FinTech", "HealthTech", "EdTech", "AgriTech", "SaaS",
+  "E-Commerce", "AI/ML", "CleanTech", "BioTech", "Other",
 ];
+
 const stages = [
-  { id: "IDEA", desc: "Concept stage, no product yet" },
-  { id: "MVP", desc: "Minimum viable product built" },
-  { id: "REVENUE", desc: "Generating revenue" },
-  { id: "GROWTH", desc: "Scaling operations" },
+  { id: "PRE_SEED", label: "Pre-Seed", desc: "Concept stage, validating the idea" },
+  { id: "SEED", label: "Seed", desc: "Building MVP, early traction" },
+  { id: "SERIES_A", label: "Series A", desc: "Product-market fit, scaling" },
+  { id: "GROWTH", label: "Growth", desc: "Rapid scaling & expansion" },
 ];
+
+const valueAddOptions = ["Network & Intros", "Hiring Support", "Tech Guidance", "Board Seats", "Go-to-Market", "Regulatory"];
+const coInvestOptions = ["Lead Rounds", "Follow-on Only", "Open to Both"];
+const diligenceOptions = ["< 2 Weeks", "2–4 Weeks", "1–2 Months", "2+ Months"];
+const regionalOptions = ["Pan-India", "Bangalore/Chennai", "Mumbai/Pune", "Delhi-NCR", "Global", "Southeast Asia"];
 
 interface OnboardingFormProps {
   userType: "startup" | "investor";
 }
 
+// ===== STARTUP WIZARD STEPS =====
+const startupSteps = ["Basics", "Your Idea", "Funding", "Industry & Stage"];
+
+// ===== INVESTOR WIZARD STEPS =====
+const investorSteps = ["Basics", "Ticket Size", "Investment Thesis", "Preferences", "Value-Add"];
+
 const OnboardingForm = ({ userType }: OnboardingFormProps) => {
   const navigate = useNavigate();
   const isInvestor = userType === "investor";
+  const [step, setStep] = useState(0);
+
+  const steps = isInvestor ? investorSteps : startupSteps;
+  const totalSteps = steps.length;
 
   // Startup fields
   const [startupForm, setStartupForm] = useState({
     name: "", description: "", industry: "", stage: "", funding: "", location: "",
   });
-  // Investor fields
+
+  // Investor fields (enhanced)
   const [investorForm, setInvestorForm] = useState({
-    firmName: "", preferredSectors: [] as string[], minInvestment: "", maxInvestment: "", stage: "", bio: "",
+    firmName: "",
+    minTicket: "",
+    maxTicket: "",
+    thesis: "",
+    coInvestment: "",
+    valueAdd: [] as string[],
+    preferredSectors: [] as string[],
+    stage: "",
+    antiPortfolio: "",
+    diligenceTimeframe: "",
+    regionalFocus: [] as string[],
   });
 
   const updateStartup = (key: string, value: string) =>
     setStartupForm((prev) => ({ ...prev, [key]: value }));
 
-  const toggleSector = (sector: string) => {
-    setInvestorForm((prev) => ({
-      ...prev,
-      preferredSectors: prev.preferredSectors.includes(sector)
-        ? prev.preferredSectors.filter((s) => s !== sector)
-        : [...prev.preferredSectors, sector],
-    }));
-  };
-
   const updateInvestor = (key: string, value: string) =>
     setInvestorForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const toggleInvestorArray = (key: "valueAdd" | "preferredSectors" | "regionalFocus", value: string) => {
+    setInvestorForm((prev) => ({
+      ...prev,
+      [key]: prev[key].includes(value) ? prev[key].filter((v) => v !== value) : [...prev[key], value],
+    }));
+  };
+
+  const progress = ((step + 1) / totalSteps) * 100;
+
+  const canProceed = () => {
+    if (isInvestor) {
+      switch (step) {
+        case 0: return !!investorForm.firmName;
+        case 1: return !!investorForm.minTicket && !!investorForm.maxTicket;
+        case 2: return !!investorForm.thesis;
+        case 3: return investorForm.preferredSectors.length > 0 && !!investorForm.stage;
+        case 4: return true;
+        default: return true;
+      }
+    } else {
+      switch (step) {
+        case 0: return !!startupForm.name && !!startupForm.location;
+        case 1: return !!startupForm.description;
+        case 2: return !!startupForm.funding;
+        case 3: return !!startupForm.industry && !!startupForm.stage;
+        default: return true;
+      }
+    }
+  };
+
+  const handleSubmit = () => {
     if (isInvestor) {
       sessionStorage.setItem("investor_profile", JSON.stringify(investorForm));
-      toast.success("Investor profile saved!");
+      toast.success("Profile saved successfully!");
       navigate("/investor/dashboard");
     } else {
       sessionStorage.setItem("startup_profile", JSON.stringify(startupForm));
-      toast.success("Startup profile saved!");
+      toast.success("Profile saved successfully!");
       navigate("/startup/dashboard");
     }
   };
 
-  // Progress calculation
-  const startupFilled = [startupForm.name, startupForm.description, startupForm.industry, startupForm.stage, startupForm.funding].filter(Boolean).length;
-  const investorFilled = [investorForm.firmName, investorForm.preferredSectors.length > 0, investorForm.minInvestment, investorForm.maxInvestment, investorForm.stage].filter(Boolean).length;
-  const filled = isInvestor ? investorFilled : startupFilled;
-  const progress = (filled / 5) * 100;
+  const nextStep = () => {
+    if (step < totalSteps - 1) setStep(step + 1);
+    else handleSubmit();
+  };
+  const prevStep = () => { if (step > 0) setStep(step - 1); };
+
+  const accentColor = isInvestor ? "accent" : "primary";
+
+  const renderStartupStep = () => {
+    switch (step) {
+      case 0:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">Startup Name</label>
+              <input
+                value={startupForm.name}
+                onChange={(e) => updateStartup("name", e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-body outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                placeholder="What's your startup called?"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">Location</label>
+              <input
+                value={startupForm.location}
+                onChange={(e) => updateStartup("location", e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-body outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                placeholder="City, Country"
+              />
+            </div>
+          </div>
+        );
+      case 1:
+        return (
+          <div>
+            <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+              Describe your startup idea
+            </label>
+            <p className="text-xs text-muted-foreground mb-4 font-body">What problem does it solve? Who is your target market?</p>
+            <textarea
+              rows={6}
+              value={startupForm.description}
+              onChange={(e) => updateStartup("description", e.target.value)}
+              className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-body outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all resize-none leading-relaxed placeholder:text-muted-foreground"
+              placeholder="Tell us about your vision..."
+            />
+          </div>
+        );
+      case 2:
+        return (
+          <div>
+            <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+              Funding Needed (₹ INR)
+            </label>
+            <p className="text-xs text-muted-foreground mb-4 font-body">How much capital are you raising?</p>
+            <div className="flex items-center gap-3">
+              <span className="font-display text-3xl text-primary font-bold">₹</span>
+              <input
+                type="number"
+                value={startupForm.funding}
+                onChange={(e) => updateStartup("funding", e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-display text-2xl font-bold outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground placeholder:text-lg placeholder:font-body placeholder:font-normal"
+                placeholder="50,00,000"
+              />
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-3">Industry</label>
+              <div className="grid grid-cols-2 gap-2">
+                {industries.map((ind) => (
+                  <button
+                    key={ind}
+                    type="button"
+                    onClick={() => updateStartup("industry", ind)}
+                    className={`text-left px-4 py-3 rounded-lg border text-sm font-body transition-all ${
+                      startupForm.industry === ind
+                        ? "bg-primary/10 border-primary/30 text-primary"
+                        : "bg-secondary/30 border-border text-muted-foreground hover:border-border hover:bg-secondary/50"
+                    }`}
+                  >
+                    {startupForm.industry === ind && <Check className="w-3 h-3 inline mr-2" />}
+                    {ind}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-3">Stage</label>
+              <div className="space-y-2">
+                {stages.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => updateStartup("stage", s.id)}
+                    className={`w-full text-left px-4 py-3.5 rounded-lg border transition-all ${
+                      startupForm.stage === s.id
+                        ? "bg-primary/10 border-primary/30"
+                        : "bg-secondary/30 border-border hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className={`font-display text-sm font-semibold ${startupForm.stage === s.id ? 'text-primary' : 'text-foreground'}`}>
+                      {s.label}
+                    </span>
+                    <span className="block text-xs text-muted-foreground mt-0.5 font-body">{s.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      default: return null;
+    }
+  };
+
+  const renderInvestorStep = () => {
+    switch (step) {
+      case 0:
+        return (
+          <div>
+            <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+              Firm or Investor Name
+            </label>
+            <input
+              value={investorForm.firmName}
+              onChange={(e) => updateInvestor("firmName", e.target.value)}
+              className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-body outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all placeholder:text-muted-foreground"
+              placeholder="Your firm or name"
+            />
+          </div>
+        );
+      case 1:
+        return (
+          <div className="space-y-6">
+            <p className="text-xs text-muted-foreground font-body">
+              What is your typical investment range per startup? All values in Indian Rupees (₹).
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">Minimum (₹)</label>
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-xl text-accent font-bold">₹</span>
+                  <input
+                    type="number"
+                    value={investorForm.minTicket}
+                    onChange={(e) => updateInvestor("minTicket", e.target.value)}
+                    className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-display font-bold outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all placeholder:text-muted-foreground placeholder:font-body placeholder:font-normal placeholder:text-sm"
+                    placeholder="25,00,000"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">Maximum (₹)</label>
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-xl text-accent font-bold">₹</span>
+                  <input
+                    type="number"
+                    value={investorForm.maxTicket}
+                    onChange={(e) => updateInvestor("maxTicket", e.target.value)}
+                    className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-display font-bold outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all placeholder:text-muted-foreground placeholder:font-body placeholder:font-normal placeholder:text-sm"
+                    placeholder="5,00,00,000"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+                Investment Thesis
+              </label>
+              <p className="text-xs text-muted-foreground mb-3 font-body">
+                What specific problems are you looking to solve with your capital?
+              </p>
+              <textarea
+                rows={4}
+                value={investorForm.thesis}
+                onChange={(e) => updateInvestor("thesis", e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-body outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all resize-none placeholder:text-muted-foreground leading-relaxed"
+                placeholder="Describe your investment thesis and focus areas..."
+              />
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+                Anti-Portfolio — Industries you never invest in
+              </label>
+              <input
+                value={investorForm.antiPortfolio}
+                onChange={(e) => updateInvestor("antiPortfolio", e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-foreground font-body outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all placeholder:text-muted-foreground"
+                placeholder="e.g., Gambling, Tobacco, Crypto"
+              />
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-3">Target Sectors</label>
+              <div className="grid grid-cols-2 gap-2">
+                {industries.map((ind) => (
+                  <button
+                    key={ind}
+                    type="button"
+                    onClick={() => toggleInvestorArray("preferredSectors", ind)}
+                    className={`text-left px-4 py-3 rounded-lg border text-sm font-body transition-all ${
+                      investorForm.preferredSectors.includes(ind)
+                        ? "bg-accent/10 border-accent/30 text-accent"
+                        : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {investorForm.preferredSectors.includes(ind) && <Check className="w-3 h-3 inline mr-2" />}
+                    {ind}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-3">Preferred Stage</label>
+              <div className="space-y-2">
+                {stages.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => updateInvestor("stage", s.id)}
+                    className={`w-full text-left px-4 py-3.5 rounded-lg border transition-all ${
+                      investorForm.stage === s.id
+                        ? "bg-accent/10 border-accent/30"
+                        : "bg-secondary/30 border-border hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className={`font-display text-sm font-semibold ${investorForm.stage === s.id ? 'text-accent' : 'text-foreground'}`}>
+                      {s.label}
+                    </span>
+                    <span className="block text-xs text-muted-foreground mt-0.5 font-body">{s.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+                Co-Investment Interest
+              </label>
+              <p className="text-xs text-muted-foreground mb-3 font-body">Are you open to lead rounds or follow-on only?</p>
+              <div className="space-y-2">
+                {coInvestOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => updateInvestor("coInvestment", opt)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-body transition-all ${
+                      investorForm.coInvestment === opt
+                        ? "bg-accent/10 border-accent/30 text-accent"
+                        : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {investorForm.coInvestment === opt && <Check className="w-3 h-3 inline mr-2" />}
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+                Value-Add — Besides capital, what do you provide?
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {valueAddOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleInvestorArray("valueAdd", opt)}
+                    className={`text-left px-3 py-2.5 rounded-lg border text-sm font-body transition-all ${
+                      investorForm.valueAdd.includes(opt)
+                        ? "bg-accent/10 border-accent/30 text-accent"
+                        : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {investorForm.valueAdd.includes(opt) && <Check className="w-3 h-3 inline mr-1" />}
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+                Typical Diligence Timeframe
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {diligenceOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => updateInvestor("diligenceTimeframe", opt)}
+                    className={`text-left px-3 py-2.5 rounded-lg border text-sm font-body transition-all ${
+                      investorForm.diligenceTimeframe === opt
+                        ? "bg-accent/10 border-accent/30 text-accent"
+                        : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {investorForm.diligenceTimeframe === opt && <Check className="w-3 h-3 inline mr-1" />}
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2">
+                Regional Focus
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {regionalOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleInvestorArray("regionalFocus", opt)}
+                    className={`text-left px-3 py-2.5 rounded-lg border text-sm font-body transition-all ${
+                      investorForm.regionalFocus.includes(opt)
+                        ? "bg-accent/10 border-accent/30 text-accent"
+                        : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {investorForm.regionalFocus.includes(opt) && <Check className="w-3 h-3 inline mr-1" />}
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      default: return null;
+    }
+  };
 
   return (
-    <div>
-      {/* Progress bar */}
+    <div className="min-h-screen flex flex-col">
+      {/* Progress */}
       <div className="h-1 bg-muted">
         <motion.div
-          className={`h-full ${isInvestor ? "bg-accent" : "bg-secondary"}`}
+          className={`h-full ${isInvestor ? "bg-accent" : "bg-primary"}`}
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
         />
       </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* Header */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 border-b border-border">
-          <div className="lg:col-span-2 p-6 sm:p-8 lg:border-r border-border">
-            <div className="flex items-baseline justify-between">
-              <div>
-                <p className={`font-mono text-[10px] uppercase tracking-[0.3em] mb-2 ${isInvestor ? "text-accent" : "text-secondary"}`}>
-                  ■ {isInvestor ? "INVESTOR_PREFERENCES" : "STARTUP_PROFILE"}
-                </p>
-                <h2 className="font-display text-3xl sm:text-4xl uppercase text-primary">
-                  {isInvestor ? "SET YOUR PREFERENCES" : "SUBMIT YOUR STARTUP"}
-                </h2>
-              </div>
-              <span className="font-mono text-xs text-muted-foreground">{filled}/5 FIELDS</span>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
+        <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] ${isInvestor ? 'bg-accent/3' : 'bg-primary/3'} rounded-full blur-3xl pointer-events-none`} />
+
+        <div className="w-full max-w-xl relative z-10">
+          {/* Step indicator */}
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={prevStep}
+              disabled={step === 0}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors font-body"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+            <div className="flex items-center gap-2">
+              {steps.map((s, i) => (
+                <div key={s} className="flex items-center gap-2">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold transition-all ${
+                    i < step ? `bg-${accentColor} text-${accentColor}-foreground` :
+                    i === step ? `border-2 border-${accentColor} text-${accentColor}` :
+                    "border border-border text-muted-foreground"
+                  }`}>
+                    {i < step ? <Check className="w-3 h-3" /> : i + 1}
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div className={`w-6 h-px ${i < step ? `bg-${accentColor}` : "bg-border"}`} />
+                  )}
+                </div>
+              ))}
             </div>
+            <span className="text-xs text-muted-foreground font-body">
+              {step + 1}/{totalSteps}
+            </span>
           </div>
-          <div className="p-6 sm:p-8 flex items-center justify-center">
-            <div className="text-center">
-              <p className={`font-display text-4xl ${isInvestor ? "text-accent" : "text-secondary"}`}>{Math.round(progress)}%</p>
-              <p className="font-mono text-[10px] text-muted-foreground tracking-widest">COMPLETE</p>
-            </div>
-          </div>
+
+          {/* Step title */}
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
+          >
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">
+              {steps[step]}
+            </h2>
+            <p className="text-sm text-muted-foreground font-body">
+              {isInvestor ? "Investor Profile" : "Startup Profile"} — Step {step + 1} of {totalSteps}
+            </p>
+          </motion.div>
+
+          {/* Step content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3 }}
+              className="glass-card p-6 sm:p-8 mb-6"
+            >
+              {isInvestor ? renderInvestorStep() : renderStartupStep()}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Next button */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={nextStep}
+            disabled={!canProceed()}
+            className={`w-full flex items-center justify-center gap-2 font-display font-semibold text-sm py-4 rounded-xl transition-all ${
+              canProceed()
+                ? isInvestor
+                  ? "bg-accent text-accent-foreground glow-gold hover:brightness-110"
+                  : "bg-primary text-primary-foreground glow-emerald hover:brightness-110"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            }`}
+          >
+            {step === totalSteps - 1 ? (
+              <>Complete & Find Matches</>
+            ) : (
+              <>Continue <ArrowRight className="w-4 h-4" /></>
+            )}
+          </motion.button>
         </div>
-
-        {isInvestor ? (
-          /* ===== INVESTOR FORM ===== */
-          <div className="grid grid-cols-1 lg:grid-cols-3">
-            <div className="lg:col-span-2 lg:border-r border-border">
-              <div className="grid grid-cols-1 sm:grid-cols-2">
-                <div className="p-6 sm:p-8 border-b border-border sm:border-r">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                    FIRM / NAME <span className="text-accent">*</span>
-                  </label>
-                  <input
-                    required
-                    value={investorForm.firmName}
-                    onChange={(e) => updateInvestor("firmName", e.target.value)}
-                    className="w-full bg-transparent border-b-2 border-border font-display text-xl py-2 outline-none focus:border-accent uppercase placeholder:text-muted-foreground placeholder:font-mono placeholder:text-sm placeholder:normal-case text-primary"
-                    placeholder="Firm or investor name..."
-                  />
-                </div>
-                <div className="p-6 sm:p-8 border-b border-border">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                    PREFERRED STAGE <span className="text-accent">*</span>
-                  </label>
-                  <div className="flex flex-col gap-1">
-                    {stages.map((s) => (
-                      <button
-                        type="button"
-                        key={s.id}
-                        onClick={() => updateInvestor("stage", s.id)}
-                        className={`font-mono text-[10px] uppercase px-3 py-2.5 border border-border text-left rounded-sm transition-colors ${
-                          investorForm.stage === s.id
-                            ? "bg-accent text-accent-foreground"
-                            : "bg-card text-card-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {investorForm.stage === s.id ? "■" : "→"} {s.id}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2">
-                <div className="p-6 sm:p-8 border-b border-border sm:border-r">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                    MIN CHECK SIZE (USD) <span className="text-accent">*</span>
-                  </label>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-display text-2xl text-accent">$</span>
-                    <input
-                      required
-                      type="number"
-                      value={investorForm.minInvestment}
-                      onChange={(e) => updateInvestor("minInvestment", e.target.value)}
-                      className="w-full bg-transparent border-b-2 border-border font-display text-2xl py-2 outline-none focus:border-accent placeholder:text-muted-foreground placeholder:text-base placeholder:font-mono text-primary"
-                      placeholder="50000"
-                    />
-                  </div>
-                </div>
-                <div className="p-6 sm:p-8 border-b border-border">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                    MAX CHECK SIZE (USD) <span className="text-accent">*</span>
-                  </label>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-display text-2xl text-accent">$</span>
-                    <input
-                      required
-                      type="number"
-                      value={investorForm.maxInvestment}
-                      onChange={(e) => updateInvestor("maxInvestment", e.target.value)}
-                      className="w-full bg-transparent border-b-2 border-border font-display text-2xl py-2 outline-none focus:border-accent placeholder:text-muted-foreground placeholder:text-base placeholder:font-mono text-primary"
-                      placeholder="500000"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 sm:p-8 border-b border-border">
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                  BIO / INVESTMENT THESIS
-                </label>
-                <textarea
-                  rows={4}
-                  value={investorForm.bio}
-                  onChange={(e) => updateInvestor("bio", e.target.value)}
-                  className="w-full bg-transparent border-b-2 border-border font-mono text-sm py-2 outline-none focus:border-accent resize-none leading-relaxed placeholder:text-muted-foreground text-primary"
-                  placeholder="Describe your investment focus and thesis..."
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <div className="p-6 sm:p-8 border-b border-border flex-1">
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                  TARGET SECTORS <span className="text-accent">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {industries.map((ind) => (
-                    <button
-                      type="button"
-                      key={ind}
-                      onClick={() => toggleSector(ind)}
-                      className={`font-mono text-[10px] uppercase px-2 py-3 border border-border rounded-sm transition-colors text-left ${
-                        investorForm.preferredSectors.includes(ind)
-                          ? "bg-accent text-accent-foreground"
-                          : "bg-card text-card-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {investorForm.preferredSectors.includes(ind) ? "■" : "□"} {ind}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={filled < 5}
-                className={`p-6 sm:p-8 font-mono text-sm uppercase tracking-widest py-8 transition-colors border-b border-border rounded-sm ${
-                  filled >= 5
-                    ? "bg-accent text-accent-foreground hover:brightness-110 shadow-md"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {filled >= 5 ? "→ FIND STARTUPS" : `FILL ${5 - filled} MORE FIELD${5 - filled > 1 ? "S" : ""}`}
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* ===== STARTUP FORM ===== */
-          <div className="grid grid-cols-1 lg:grid-cols-3">
-            <div className="lg:col-span-2 lg:border-r border-border">
-              <div className="grid grid-cols-1 sm:grid-cols-2">
-                <div className="p-6 sm:p-8 border-b border-border sm:border-r">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                    STARTUP_NAME <span className="text-secondary">*</span>
-                  </label>
-                  <input
-                    required
-                    value={startupForm.name}
-                    onChange={(e) => updateStartup("name", e.target.value)}
-                    className="w-full bg-transparent border-b-2 border-border font-display text-xl py-2 outline-none focus:border-secondary uppercase placeholder:text-muted-foreground placeholder:font-mono placeholder:text-sm placeholder:normal-case text-primary"
-                    placeholder="Enter name..."
-                  />
-                </div>
-                <div className="p-6 sm:p-8 border-b border-border">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                    LOCATION
-                  </label>
-                  <input
-                    value={startupForm.location}
-                    onChange={(e) => updateStartup("location", e.target.value)}
-                    className="w-full bg-transparent border-b-2 border-border font-display text-xl py-2 outline-none focus:border-secondary uppercase placeholder:text-muted-foreground placeholder:font-mono placeholder:text-sm placeholder:normal-case text-primary"
-                    placeholder="City, Country..."
-                  />
-                </div>
-              </div>
-
-              <div className="p-6 sm:p-8 border-b border-border">
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                  STARTUP_IDEA <span className="text-secondary">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={5}
-                  value={startupForm.description}
-                  onChange={(e) => updateStartup("description", e.target.value)}
-                  className="w-full bg-transparent border-b-2 border-border font-mono text-sm py-2 outline-none focus:border-secondary resize-none leading-relaxed placeholder:text-muted-foreground text-primary"
-                  placeholder="Describe your startup idea in detail. What problem does it solve? Who is your target market?"
-                />
-              </div>
-
-              <div className="p-6 sm:p-8 border-b border-border">
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                  FUNDING_NEEDED (USD) <span className="text-secondary">*</span>
-                </label>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-display text-3xl text-secondary">$</span>
-                  <input
-                    required
-                    type="number"
-                    value={startupForm.funding}
-                    onChange={(e) => updateStartup("funding", e.target.value)}
-                    className="w-full bg-transparent border-b-2 border-border font-display text-3xl py-2 outline-none focus:border-secondary placeholder:text-muted-foreground placeholder:text-lg placeholder:font-mono text-primary"
-                    placeholder="500000"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <div className="p-6 sm:p-8 border-b border-border">
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                  INDUSTRY <span className="text-secondary">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {industries.map((ind) => (
-                    <button
-                      type="button"
-                      key={ind}
-                      onClick={() => updateStartup("industry", ind)}
-                      className={`font-mono text-[10px] uppercase px-2 py-3 border border-border rounded-sm transition-colors text-left ${
-                        startupForm.industry === ind
-                          ? "bg-secondary text-secondary-foreground"
-                          : "bg-card text-card-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {startupForm.industry === ind ? "■" : "□"} {ind}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-6 sm:p-8 border-b border-border flex-1">
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-4">
-                  STAGE <span className="text-secondary">*</span>
-                </label>
-                <div className="flex flex-col gap-1">
-                  {stages.map((s) => (
-                    <button
-                      type="button"
-                      key={s.id}
-                      onClick={() => updateStartup("stage", s.id)}
-                      className={`font-mono text-[10px] uppercase px-3 py-3 border border-border text-left rounded-sm transition-colors ${
-                        startupForm.stage === s.id
-                          ? "bg-secondary text-secondary-foreground"
-                          : "bg-card text-card-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <span className="font-display text-sm block">{startupForm.stage === s.id ? "■" : "→"} {s.id}</span>
-                      <span className={`text-[9px] ${startupForm.stage === s.id ? "opacity-80" : "text-muted-foreground"}`}>
-                        {s.desc}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={filled < 5}
-                className={`p-6 sm:p-8 font-mono text-sm uppercase tracking-widest py-8 transition-colors border-b border-border rounded-sm ${
-                  filled >= 5
-                    ? "bg-secondary text-secondary-foreground hover:brightness-110 shadow-md"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {filled >= 5 ? "→ ANALYZE & MATCH" : `FILL ${5 - filled} MORE FIELD${5 - filled > 1 ? "S" : ""}`}
-              </button>
-            </div>
-          </div>
-        )}
-      </form>
+      </div>
     </div>
   );
 };
