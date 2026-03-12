@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, LogIn, UserPlus } from "lucide-react";
+import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 const AuthForm = () => {
@@ -13,6 +13,7 @@ const AuthForm = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -20,8 +21,6 @@ const AuthForm = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    // Simulate auth — replace with Lovable Cloud auth later
     setTimeout(() => {
       const userData = {
         email: form.email,
@@ -35,100 +34,114 @@ const AuthForm = () => {
     }, 800);
   };
 
+  const accentColor = isInvestor ? "accent" : "primary";
+
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-8">
+    <div className="min-h-[85vh] flex items-center justify-center px-6 py-16 relative">
+      <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] ${isInvestor ? 'bg-accent/5' : 'bg-primary/5'} rounded-full blur-3xl pointer-events-none`} />
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-md relative z-10"
       >
         <button
           onClick={() => navigate("/")}
-          className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 font-body"
         >
           <ArrowLeft className="w-4 h-4" />
-          BACK
+          Back
         </button>
 
-        <div className={`border-2 rounded-lg p-8 bg-card ${isInvestor ? "border-accent/50" : "border-secondary/50"}`}>
+        <div className={`glass-card p-8 ${isInvestor ? 'glow-gold' : 'glow-emerald'}`}>
           <div className="text-center mb-8">
-            <div className={`w-12 h-12 mx-auto mb-4 rounded-lg flex items-center justify-center ${isInvestor ? "bg-accent/10" : "bg-secondary/10"}`}>
-              <span className={`font-display text-lg font-bold ${isInvestor ? "text-accent" : "text-secondary"}`}>
+            <div className={`w-14 h-14 mx-auto mb-4 rounded-2xl bg-${accentColor}/10 flex items-center justify-center`}>
+              <span className={`font-display text-lg font-bold text-${accentColor}`}>
                 {isInvestor ? "INV" : "FND"}
               </span>
             </div>
-            <h2 className="font-display text-2xl uppercase text-primary mb-1">
-              {isSignup ? "CREATE ACCOUNT" : "WELCOME BACK"}
+            <h2 className="font-display text-2xl font-bold text-foreground mb-1">
+              {isSignup ? "Create Account" : "Welcome Back"}
             </h2>
-            <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
-              {isInvestor ? "// INVESTOR_PORTAL" : "// FOUNDER_PORTAL"}
+            <p className="font-body text-sm text-muted-foreground">
+              {isInvestor ? "Investor Portal" : "Founder Portal"}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {isSignup && (
               <div>
-                <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-2">
-                  FULL NAME
+                <label className="text-xs font-display font-semibold text-muted-foreground block mb-2 tracking-wide">
+                  Full Name
                 </label>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => update("name", e.target.value)}
-                  className="w-full bg-background border-2 border-border rounded-md px-4 py-3 font-mono text-sm text-primary outline-none focus:border-secondary transition-colors"
-                  placeholder="Your name..."
+                  className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-sm text-foreground font-body outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                  placeholder="Your name"
                 />
               </div>
             )}
 
             <div>
-              <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-2">
-                EMAIL
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2 tracking-wide">
+                Email
               </label>
               <input
                 required
                 type="email"
                 value={form.email}
                 onChange={(e) => update("email", e.target.value)}
-                className="w-full bg-background border-2 border-border rounded-md px-4 py-3 font-mono text-sm text-primary outline-none focus:border-secondary transition-colors"
-                placeholder="you@startup.com"
+                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 text-sm text-foreground font-body outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                placeholder="you@company.com"
               />
             </div>
 
             <div>
-              <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground block mb-2">
-                PASSWORD
+              <label className="text-xs font-display font-semibold text-muted-foreground block mb-2 tracking-wide">
+                Password
               </label>
-              <input
-                required
-                type="password"
-                value={form.password}
-                onChange={(e) => update("password", e.target.value)}
-                className="w-full bg-background border-2 border-border rounded-md px-4 py-3 font-mono text-sm text-primary outline-none focus:border-secondary transition-colors"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => update("password", e.target.value)}
+                  className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-3 pr-11 text-sm text-foreground font-body outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className={`w-full flex items-center justify-center gap-2 font-mono text-sm uppercase tracking-widest py-4 rounded-md transition-all ${
+              className={`w-full flex items-center justify-center gap-2 font-display font-semibold text-sm py-3.5 rounded-lg transition-all ${
                 isInvestor
-                  ? "bg-accent text-accent-foreground hover:brightness-110"
-                  : "bg-secondary text-secondary-foreground hover:brightness-110"
+                  ? "bg-accent text-accent-foreground hover:brightness-110 glow-gold"
+                  : "bg-primary text-primary-foreground hover:brightness-110 glow-emerald"
               } ${loading ? "opacity-60" : ""}`}
             >
               {loading ? (
-                <span className="animate-pulse">AUTHENTICATING...</span>
+                <span className="animate-pulse">Authenticating...</span>
               ) : isSignup ? (
                 <>
                   <UserPlus className="w-4 h-4" />
-                  CREATE ACCOUNT
+                  Create Account
                 </>
               ) : (
                 <>
                   <LogIn className="w-4 h-4" />
-                  LOGIN
+                  Sign In
                 </>
               )}
             </button>
@@ -137,9 +150,9 @@ const AuthForm = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => setIsSignup(!isSignup)}
-              className="font-mono text-[11px] text-muted-foreground hover:text-secondary transition-colors uppercase"
+              className="font-body text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {isSignup ? "Already have an account? LOGIN" : "New here? CREATE ACCOUNT"}
+              {isSignup ? "Already have an account? Sign in" : "New here? Create account"}
             </button>
           </div>
         </div>

@@ -47,66 +47,67 @@ const OutreachModal = ({ open, onClose, emailText: initialEmail, investorName }:
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            exit={{ opacity: 0, y: 24, scale: 0.96 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border-2 border-border rounded-lg w-full max-w-2xl max-h-[80vh] overflow-auto"
+            className="glass-card w-full max-w-2xl max-h-[80vh] overflow-auto glow-emerald"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border">
+            <div className="flex items-center justify-between p-6 border-b border-border">
               <div>
-                <p className="font-mono text-[10px] text-secondary uppercase tracking-[0.3em]">
-                  ■ OUTREACH_EMAIL
+                <p className="text-xs font-display font-semibold text-primary tracking-wide">
+                  Outreach Email
                 </p>
-                <p className="font-display text-lg uppercase text-primary mt-1">TO: {investorName}</p>
+                <p className="font-display text-lg font-bold text-foreground mt-1">To: {investorName}</p>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-muted rounded-md transition-colors">
+              <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors">
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
             {/* Toolbar */}
-            <div className="flex gap-2 px-5 py-3 border-b border-border bg-muted/50">
+            <div className="flex gap-2 px-6 py-3 border-b border-border bg-secondary/30">
               <button
                 onClick={handleUndo}
-                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest border border-border px-3 py-1.5 rounded-sm hover:bg-background transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-body border border-border px-3 py-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
               >
-                <Undo2 className="w-3 h-3" /> UNDO
+                <Undo2 className="w-3 h-3" /> Undo
               </button>
               <button
                 onClick={handleEdit}
-                className={`inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest border px-3 py-1.5 rounded-sm transition-colors ${
+                className={`inline-flex items-center gap-1.5 text-xs font-body border px-3 py-1.5 rounded-lg transition-colors ${
                   isEditing
-                    ? "border-secondary bg-secondary text-secondary-foreground"
-                    : "border-border hover:bg-background"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-secondary text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
-                {isEditing ? "SAVE" : "EDIT"}
+                {isEditing ? "Save" : "Edit"}
               </button>
               <button
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest border border-border px-3 py-1.5 rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-body border border-border px-3 py-1.5 rounded-lg hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-colors text-muted-foreground"
               >
-                <Copy className="w-3 h-3" /> COPY
+                <Copy className="w-3 h-3" /> Copy
               </button>
             </div>
 
             {/* Email body */}
-            <div className="p-5">
+            <div className="p-6">
               {isEditing ? (
                 <textarea
                   value={emailText}
                   onChange={(e) => setEmailText(e.target.value)}
-                  className="w-full font-mono text-xs leading-relaxed whitespace-pre-wrap text-primary bg-background border-2 border-secondary p-4 rounded-md min-h-[280px] focus:outline-none focus:ring-2 focus:ring-secondary resize-y"
+                  className="w-full font-body text-sm leading-relaxed whitespace-pre-wrap text-foreground bg-secondary/50 border border-primary/30 p-4 rounded-lg min-h-[280px] focus:outline-none focus:ring-1 focus:ring-primary/20 resize-y"
                 />
               ) : (
-                <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-primary bg-muted border border-border p-4 rounded-md">
+                <pre className="font-body text-sm leading-relaxed whitespace-pre-wrap text-foreground bg-secondary/30 border border-border p-4 rounded-lg">
                   {emailText}
                 </pre>
               )}
