@@ -7,15 +7,15 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "0",
+      padding: "2rem",
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
       fontFamily: {
-        display: ["Space Grotesk", "sans-serif"],
-        mono: ["IBM Plex Mono", "monospace"],
+        display: ["Manrope", "sans-serif"],
+        body: ["DM Sans", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
