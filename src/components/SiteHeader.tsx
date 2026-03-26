@@ -1,10 +1,24 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import { signOut } from "firebase/auth";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
 
 const SiteHeader = () => {
   const location = useLocation();
+  const { user, userProfile } = useAuth();
   const isHome = location.pathname === "/";
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast.success("Signed out successfully.");
+    } catch (error) {
+      toast.error("Unable to sign out right now.");
+    }
+  };
 
   return (
     <header className="glass sticky top-0 z-50">
@@ -34,6 +48,21 @@ const SiteHeader = () => {
               className="text-xs text-muted-foreground hover:text-foreground font-body transition-colors"
             >
               Home
+            </Link>
+          )}
+          {user ? (
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-muted-foreground hover:text-foreground font-body transition-colors"
+            >
+              Sign Out{userProfile?.name ? ` (${userProfile.name})` : ""}
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="text-xs text-muted-foreground hover:text-foreground font-body transition-colors"
+            >
+              Sign In
             </Link>
           )}
         </div>

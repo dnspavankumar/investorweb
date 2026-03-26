@@ -1,37 +1,247 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import {
+  browserLocalPersistence,
+  createUserWithEmailAndPassword,
+  type AuthError,
+  getRedirectResult,
+  GoogleAuthProvider,
+  setPersistence,
+  signInWithEmailAndPassword,
+  signInWithRedirect,
+  updateCurrentUser,
+  updateProfile,
+  type User,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getUserProfile, upsertUserProfile } from "@/lib/firestore";
+import { useAuth } from "@/contexts/AuthContext";
+import type { UserRole } from "@/types/firestore";
+
+const ROLE_HINT_KEY = "auth_role_hint";
 
 const AuthForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const role = searchParams.get("role") || "startup";
+  const roleParam = searchParams.get("role");
+  const role: UserRole = roleParam === "investor" ? "investor" : "startup";
   const isInvestor = role === "investor";
+  const { user, userProfile, refreshUserProfile } = useAuth();
 
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [bootstrappingProfile, setBootstrappingProfile] = useState(false);
+  const googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({ prompt: "select_account" });
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!user || !userProfile) return;
+
+    if (userProfile.role === "investor") {
+      navigate(userProfile.onboardingCompleted ? "/investor/dashboard" : "/investor/onboarding");
+      return;
+    }
+
+    navigate(userProfile.onboardingCompleted ? "/startup/dashboard" : "/startup/onboarding");
+  }, [user, userProfile, navigate]);
+
+  const authErrorMessage = (code?: string) => {
+    switch (code) {
+      case "auth/invalid-email":
+        return "Please enter a valid email address.";
+      case "auth/email-already-in-use":
+        return "This email is already registered. Please sign in instead.";
+      case "auth/weak-password":
+        return "Password should be at least 6 characters.";
+      case "auth/operation-not-allowed":
+        return "Email/Password sign-in is disabled. Enable it in Firebase Console > Authentication > Sign-in method.";
+      case "auth/invalid-api-key":
+        return "Firebase API key is invalid. Re-copy your Web app config from Firebase Project settings.";
+      case "auth/configuration-not-found":
+        return "Firebase Auth config was not found for this API key. Re-copy Firebase Web config, restart dev server, and verify API key referrer restrictions allow localhost.";
+      case "auth/app-not-authorized":
+      case "auth/unauthorized-domain":
+        return "This domain is not authorized in Firebase Auth. Add localhost/your domain in Authentication > Settings > Authorized domains.";
+      case "auth/network-request-failed":
+        return "Network error while contacting Firebase. Check internet/firewall and retry.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Please wait a bit and try again.";
+      case "auth/popup-closed-by-user":
+      case "auth/cancelled-popup-request":
+        return "Google sign-in was canceled.";
+      case "auth/popup-blocked":
+        return "Popup was blocked. Allow popups for this site and try again.";
+      case "auth/account-exists-with-different-credential":
+        return "This email is already linked with another sign-in method.";
+      case "auth/invalid-credential":
+      case "auth/wrong-password":
+      case "auth/user-not-found":
+        return "Invalid email or password.";
+      case "permission-denied":
+        return "Signed in, but Firestore denied profile access. Check and deploy firestore.rules.";
+      case "failed-precondition":
+        return "Signed in, but Firestore is not initialized. Create Firestore Database in Firebase Console.";
+      case "unavailable":
+        return "Signed in, but Firestore is currently unavailable. Please retry.";
+      default:
+        return "Authentication failed. Please try again.";
+    }
+  };
+
+  const resolveRole = (value?: string | null): UserRole =>
+    value === "investor" ? "investor" : "startup";
+
+  const nextPathForRole = (resolvedRole: UserRole, onboardingCompleted: boolean | undefined) =>
+    resolvedRole === "investor"
+      ? onboardingCompleted
+        ? "/investor/dashboard"
+        : "/investor/onboarding"
+      : onboardingCompleted
+        ? "/startup/dashboard"
+        : "/startup/onboarding";
+
+  const finalizeAuthSession = useCallback(
+    async (firebaseUser: User, fallbackRole: UserRole, fallbackName?: string) => {
+      if (!auth.currentUser || auth.currentUser.uid !== firebaseUser.uid) {
+        try {
+          await updateCurrentUser(auth, firebaseUser);
+        } catch (error) {
+          console.error("Failed to set Firebase currentUser during auth finalize:", error);
+        }
+      }
+
+      let existingProfile: Awaited<ReturnType<typeof getUserProfile>> = null;
+      try {
+        existingProfile = await getUserProfile(firebaseUser.uid);
+      } catch (error) {
+        console.error("Failed to read Firestore user profile during auth finalize:", error);
+      }
+
+      const email = firebaseUser.email || "";
+      const fallbackFromEmail = email.split("@")[0] || "User";
+
+      const resolvedName =
+        (fallbackName || "").trim() ||
+        existingProfile?.name ||
+        firebaseUser.displayName ||
+        fallbackFromEmail;
+      const resolvedRole = existingProfile?.role || fallbackRole;
+      const nextPath = nextPathForRole(resolvedRole, existingProfile?.onboardingCompleted);
+
+      try {
+        await upsertUserProfile({
+          uid: firebaseUser.uid,
+          email: email || `${firebaseUser.uid}@no-email.local`,
+          name: resolvedName,
+          role: resolvedRole,
+        });
+        await refreshUserProfile();
+      } catch (error) {
+        console.error("Failed to sync Firestore profile after auth:", error);
+        toast.warning("Signed in successfully. Continuing while profile sync retries in background.");
+      }
+
+      sessionStorage.removeItem(ROLE_HINT_KEY);
+      toast.success(`Welcome, ${resolvedName}!`);
+      navigate(nextPath);
+    },
+    [refreshUserProfile, navigate]
+  );
+
+  const reportAuthError = (error: unknown) => {
+    const authError = error as Partial<AuthError> | undefined;
+    const code = authError?.code;
+
+    const message = authErrorMessage(code);
+    toast.error(code ? `${message} (${code})` : message);
+    console.error("Firebase auth error:", authError?.code, authError?.message || error);
+  };
+
+  useEffect(() => {
+    const processRedirectResult = async () => {
+      try {
+        const redirectResult = await getRedirectResult(auth);
+        if (!redirectResult) return;
+
+        const hintedRole = resolveRole(sessionStorage.getItem(ROLE_HINT_KEY));
+        sessionStorage.removeItem(ROLE_HINT_KEY);
+        await finalizeAuthSession(redirectResult.user, hintedRole);
+      } catch (error: unknown) {
+        sessionStorage.removeItem(ROLE_HINT_KEY);
+        reportAuthError(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    processRedirectResult();
+  }, [finalizeAuthSession]);
+
+  useEffect(() => {
+    if (!user || userProfile || bootstrappingProfile) return;
+
+    const bootstrapMissingProfile = async () => {
+      setBootstrappingProfile(true);
+      try {
+        const hintedRole = resolveRole(sessionStorage.getItem(ROLE_HINT_KEY) || role);
+        await finalizeAuthSession(user, hintedRole, user.displayName || user.email || "User");
+      } catch (error: unknown) {
+        reportAuthError(error);
+      } finally {
+        setBootstrappingProfile(false);
+      }
+    };
+
+    bootstrapMissingProfile();
+  }, [user, userProfile, bootstrappingProfile, role, finalizeAuthSession]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const userData = {
-        email: form.email,
-        name: form.name || form.email.split("@")[0],
-        role,
-      };
-      sessionStorage.setItem("user", JSON.stringify(userData));
-      toast.success(`Welcome, ${userData.name}!`);
-      navigate(isInvestor ? "/investor/onboarding" : "/startup/onboarding");
+
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+
+      const trimmedEmail = form.email.trim();
+      const trimmedName = form.name.trim();
+      const password = form.password.trim();
+
+      const credential = isSignup
+        ? await createUserWithEmailAndPassword(auth, trimmedEmail, password)
+        : await signInWithEmailAndPassword(auth, trimmedEmail, password);
+
+      if (isSignup && trimmedName) {
+        await updateProfile(credential.user, { displayName: trimmedName });
+      }
+
+      await finalizeAuthSession(credential.user, role, trimmedName || trimmedEmail);
+    } catch (error: unknown) {
+      reportAuthError(error);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      sessionStorage.setItem(ROLE_HINT_KEY, role);
+      await signInWithRedirect(auth, googleProvider);
+    } catch (error: unknown) {
+      sessionStorage.removeItem(ROLE_HINT_KEY);
+      reportAuthError(error);
+      setLoading(false);
+    }
   };
 
   const accentColor = isInvestor ? "accent" : "primary";
@@ -124,14 +334,14 @@ const AuthForm = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || bootstrappingProfile}
               className={`w-full flex items-center justify-center gap-2 font-display font-semibold text-sm py-3.5 rounded-lg transition-all ${
                 isInvestor
                   ? "bg-accent text-accent-foreground hover:brightness-110 glow-gold"
                   : "bg-primary text-primary-foreground hover:brightness-110 glow-emerald"
-              } ${loading ? "opacity-60" : ""}`}
+              } ${loading || bootstrappingProfile ? "opacity-60" : ""}`}
             >
-              {loading ? (
+              {loading || bootstrappingProfile ? (
                 <span className="animate-pulse">Authenticating...</span>
               ) : isSignup ? (
                 <>
@@ -144,6 +354,27 @@ const AuthForm = () => {
                   Sign In
                 </>
               )}
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-background px-2 text-muted-foreground font-body">or</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading || bootstrappingProfile}
+              className="w-full flex items-center justify-center gap-2 border border-border bg-secondary/30 hover:bg-secondary/50 text-foreground font-display font-semibold text-sm py-3.5 rounded-lg transition-all disabled:opacity-60"
+            >
+              <span className="w-5 h-5 rounded-full bg-white text-black text-xs font-bold inline-flex items-center justify-center">
+                G
+              </span>
+              Continue with Google
             </button>
           </form>
 

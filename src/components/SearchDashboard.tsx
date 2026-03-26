@@ -1,54 +1,34 @@
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Mail, ArrowLeft, Sparkles, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ShimmerCard from "./ShimmerCard";
 import OutreachModal from "./OutreachModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
+import {
+  findMatchesForFounder,
+  findMatchesForInvestor,
+  getFounderProfile,
+  getInvestorProfile,
+} from "@/lib/firestore";
+import type { MatchResult } from "@/types/firestore";
 
 interface SearchDashboardProps {
   userType: "startup" | "investor";
 }
 
-interface MatchResult {
-  name: string;
-  type: string;
-  industry: string;
-  ticketSize: string;
-  geography: string;
-  matchScore: number;
-  reasoning: string;
-}
-
-const mockStartupMatches: MatchResult[] = [
-  { name: "Apex Ventures", type: "VC", industry: "AI/ML", ticketSize: "₹40L–₹1.6Cr", geography: "India, US", matchScore: 94, reasoning: "Strong alignment in AI/ML sector with proven track record of funding early-stage companies in India." },
-  { name: "Bluestone Capital", type: "Angel", industry: "FinTech", ticketSize: "₹8L–₹40L", geography: "Global", matchScore: 87, reasoning: "Active angel investor with deep expertise in fintech and interest in emerging Indian markets." },
-  { name: "Greenfield Partners", type: "VC", industry: "CleanTech", ticketSize: "₹80L–₹4Cr", geography: "EU, India", matchScore: 78, reasoning: "ESG-focused fund actively expanding portfolio into adjacent sustainable technology sectors." },
-  { name: "Seed Forge", type: "Accelerator", industry: "SaaS", ticketSize: "₹4L–₹12L", geography: "India", matchScore: 72, reasoning: "Top accelerator program with strong mentorship network and follow-on funding capabilities." },
-  { name: "Delta Syndicate", type: "Syndicate", industry: "HealthTech", ticketSize: "₹16L–₹80L", geography: "SEA, India", matchScore: 65, reasoning: "Healthcare syndicate with cross-sector innovation partnerships." },
-];
-
-const mockInvestorMatches: MatchResult[] = [
-  { name: "NeuralTech AI", type: "Startup", industry: "AI/ML", ticketSize: "Seeking ₹80L", geography: "Bangalore", matchScore: 96, reasoning: "Strong technical team with novel AI approach. Revenue growing 40% MoM." },
-  { name: "GreenLeaf Agri", type: "Startup", industry: "AgriTech", ticketSize: "Seeking ₹40L", geography: "Pune", matchScore: 88, reasoning: "Innovative precision agriculture platform with 10K+ active farmers." },
-  { name: "PayFlow", type: "Startup", industry: "FinTech", ticketSize: "Seeking ₹1.6Cr", geography: "Mumbai", matchScore: 81, reasoning: "B2B payments infrastructure with strong enterprise pipeline." },
-  { name: "EduSpark", type: "Startup", industry: "EdTech", ticketSize: "Seeking ₹24L", geography: "Delhi-NCR", matchScore: 74, reasoning: "Gamified learning platform for K-12 with rapid user adoption." },
-];
-
-const generateEmail = (matchName: string, userType: string) => {
-  const profileStr = sessionStorage.getItem(userType === "startup" ? "startup_profile" : "investor_profile");
-  const profile = profileStr ? JSON.parse(profileStr) : {};
-  const senderName = userType === "startup" ? profile.name || "Our Startup" : profile.firmName || "Our Firm";
-
-  return `Subject: Partnership Opportunity — ${senderName} × ${matchName}
+const buildOutreachEmail = (matchName: string, userType: "startup" | "investor", senderName: string) => {
+  return `Subject: Partnership Opportunity - ${senderName} x ${matchName}
 
 Dear ${matchName},
 
-I'm reaching out regarding ${senderName}. We believe there is strong alignment between our goals and your portfolio focus.
+I'm reaching out regarding ${senderName}. We believe there is strong alignment between our goals and your profile.
 
 ${userType === "startup"
-    ? `We are currently seeking funding to accelerate our growth and expand market reach. Given your investment thesis, we believe this could be a mutually beneficial partnership.`
-    : `We've been following your progress and are impressed by your traction. We'd love to explore how we can support your growth with strategic capital and mentorship.`
+    ? "We are currently raising capital to accelerate growth and expand market reach. Given your investment focus, this looks like a strong fit."
+    : "We've been following your startup journey and are impressed by your traction. We'd love to explore strategic support through capital and mentorship."
   }
 
 I would welcome the opportunity to discuss this further at your convenience.
@@ -59,36 +39,107 @@ ${senderName}`;
 
 const SearchDashboard = ({ userType }: SearchDashboardProps) => {
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
+  const currentUser = user || auth.currentUser;
   const isInvestor = userType === "investor";
+
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<MatchResult[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<number | null>(null);
   const [emailModal, setEmailModal] = useState<{ open: boolean; matchName: string; email: string }>({
-    open: false, matchName: "", email: "",
+    open: false,
+    matchName: "",
+    email: "",
   });
 
   const [stageFilter, setStageFilter] = useState("");
   const [industryFilter, setIndustryFilter] = useState("");
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileMissing, setProfileMissing] = useState(false);
+  const [senderName, setSenderName] = useState("Our Team");
 
-  const handleSearch = useCallback(() => {
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      setProfileLoading(true);
+
+      try {
+        if (isInvestor) {
+          const investor = await getInvestorProfile(currentUser.uid);
+          if (!isMounted) return;
+
+          setProfileMissing(!investor);
+          setSenderName(investor?.firmName || userProfile?.name || "Our Firm");
+          return;
+        }
+
+        const founder = await getFounderProfile(currentUser.uid);
+        if (!isMounted) return;
+
+        setProfileMissing(!founder);
+        setSenderName(founder?.name || userProfile?.name || "Our Startup");
+      } catch (error) {
+        if (!isMounted) return;
+        toast.error("Unable to load your profile. Please refresh and try again.");
+      } finally {
+        if (isMounted) setProfileLoading(false);
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, isInvestor, userProfile?.name]);
+
+  const handleSearch = useCallback(async () => {
+    if (!currentUser) {
+      toast.error("Please sign in first.");
+      navigate(`/login?role=${userType}`);
+      return;
+    }
+
+    if (profileMissing) {
+      toast.error("Complete onboarding before searching for matches.");
+      navigate(isInvestor ? "/investor/onboarding" : "/startup/onboarding");
+      return;
+    }
+
     setSearching(true);
     setResults([]);
     setSelectedMatch(null);
 
-    setTimeout(() => {
-      const matches = isInvestor ? mockInvestorMatches : mockStartupMatches;
-      let filtered = matches;
-      if (industryFilter) {
-        filtered = filtered.filter((m) => m.industry.includes(industryFilter));
+    try {
+      const matches = isInvestor
+        ? await findMatchesForInvestor(currentUser.uid, {
+            industry: industryFilter || undefined,
+            stage: stageFilter || undefined,
+          })
+        : await findMatchesForFounder(currentUser.uid, {
+            industry: industryFilter || undefined,
+            stage: stageFilter || undefined,
+          });
+
+      setResults(matches);
+      if (matches.length > 0) {
+        setSelectedMatch(0);
+        toast.success(`Found ${matches.length} matches!`);
+      } else {
+        toast.info("No matches found for this filter. Try broadening your search.");
       }
-      setResults(filtered.length > 0 ? filtered : matches);
+    } catch (error) {
+      toast.error("Search failed. Please try again.");
+    } finally {
       setSearching(false);
-      toast.success(`Found ${(filtered.length > 0 ? filtered : matches).length} matches!`);
-    }, 2500);
-  }, [isInvestor, industryFilter]);
+    }
+  }, [currentUser, industryFilter, isInvestor, navigate, profileMissing, stageFilter, userType]);
 
   const openEmailModal = (match: MatchResult) => {
-    const email = generateEmail(match.name, userType);
+    const email = buildOutreachEmail(match.name, userType, senderName);
     setEmailModal({ open: true, matchName: match.name, email });
   };
 
@@ -103,7 +154,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
 
   return (
     <div className="min-h-screen">
-      {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border glass">
         <button
           onClick={() => navigate(isInvestor ? "/investor/onboarding" : "/startup/onboarding")}
@@ -117,7 +167,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
         </span>
       </div>
 
-      {/* Search Panel — Command Center */}
       <div className="relative px-6 py-10 sm:py-14 border-b border-border overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
         {searching && <div className="ai-scan-line" />}
@@ -134,66 +183,72 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
           </div>
 
           <div className="glass-card p-5 glow-search">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="text-[11px] font-display font-semibold text-muted-foreground block mb-1.5">Stage</label>
-                <select
-                  value={stageFilter}
-                  onChange={(e) => setStageFilter(e.target.value)}
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2.5 text-sm font-body text-foreground outline-none focus:border-primary/30"
-                >
-                  <option value="">All Stages</option>
-                  {stages.map((s) => (
-                    <option key={s} value={s}>{s.replace("_", " ")}</option>
-                  ))}
-                </select>
+            {profileLoading ? (
+              <p className="text-sm font-body text-muted-foreground">Loading your profile...</p>
+            ) : profileMissing ? (
+              <p className="text-sm font-body text-muted-foreground">
+                Complete onboarding to start matching.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="text-[11px] font-display font-semibold text-muted-foreground block mb-1.5">Stage</label>
+                  <select
+                    value={stageFilter}
+                    onChange={(e) => setStageFilter(e.target.value)}
+                    className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2.5 text-sm font-body text-foreground outline-none focus:border-primary/30"
+                  >
+                    <option value="">All Stages</option>
+                    {stages.map((s) => (
+                      <option key={s} value={s}>{s.replace("_", " ")}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-display font-semibold text-muted-foreground block mb-1.5">Industry</label>
+                  <select
+                    value={industryFilter}
+                    onChange={(e) => setIndustryFilter(e.target.value)}
+                    className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2.5 text-sm font-body text-foreground outline-none focus:border-primary/30"
+                  >
+                    <option value="">All Industries</option>
+                    {industries.map((ind) => (
+                      <option key={ind} value={ind}>{ind}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={handleSearch}
+                    disabled={searching || profileMissing || profileLoading}
+                    className={`w-full flex items-center justify-center gap-2 font-display font-semibold text-sm py-3 rounded-lg transition-all ${
+                      isInvestor
+                        ? "bg-accent text-accent-foreground hover:brightness-110"
+                        : "bg-primary text-primary-foreground hover:brightness-110"
+                    } ${searching ? "opacity-70 animate-pulse-glow" : ""}`}
+                  >
+                    {searching ? (
+                      <>
+                        <Zap className="w-4 h-4 animate-pulse" />
+                        AI Scanning...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        Search & Match
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </div>
-              <div>
-                <label className="text-[11px] font-display font-semibold text-muted-foreground block mb-1.5">Industry</label>
-                <select
-                  value={industryFilter}
-                  onChange={(e) => setIndustryFilter(e.target.value)}
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2.5 text-sm font-body text-foreground outline-none focus:border-primary/30"
-                >
-                  <option value="">All Industries</option>
-                  {industries.map((ind) => (
-                    <option key={ind} value={ind}>{ind}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={handleSearch}
-                  disabled={searching}
-                  className={`w-full flex items-center justify-center gap-2 font-display font-semibold text-sm py-3 rounded-lg transition-all ${
-                    isInvestor
-                      ? "bg-accent text-accent-foreground hover:brightness-110"
-                      : "bg-primary text-primary-foreground hover:brightness-110"
-                  } ${searching ? "opacity-70 animate-pulse-glow" : ""}`}
-                >
-                  {searching ? (
-                    <>
-                      <Zap className="w-4 h-4 animate-pulse" />
-                      AI Scanning...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4" />
-                      Search & Match
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Results */}
       <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[50vh]">
-        {/* Match list */}
         <div className="lg:col-span-1 lg:border-r border-border">
           <div className="px-5 py-3 border-b border-border">
             <p className={`text-xs font-display font-semibold ${isInvestor ? "text-accent" : "text-primary"}`}>
@@ -213,7 +268,7 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
             <div className="stagger-children">
               {results.map((match, i) => (
                 <button
-                  key={match.name}
+                  key={match.id}
                   onClick={() => setSelectedMatch(i)}
                   className={`p-5 border-b border-border w-full text-left transition-all ${
                     selectedMatch === i
@@ -245,7 +300,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
           )}
         </div>
 
-        {/* Detail panel */}
         <div className="lg:col-span-2">
           {selectedMatch !== null && results[selectedMatch] ? (
             <motion.div
@@ -254,7 +308,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Match header */}
               <div className="grid grid-cols-3 border-b border-border">
                 {[
                   { label: "Selected", value: results[selectedMatch].name },
@@ -268,7 +321,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
                 ))}
               </div>
 
-              {/* AI Reasoning */}
               <div className="p-6 sm:p-8 border-b border-border">
                 <div className="inline-flex items-center gap-2 text-xs font-display font-semibold text-primary mb-4">
                   <Sparkles className="w-3 h-3" />
@@ -281,7 +333,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
                 </div>
               </div>
 
-              {/* Email button for founders */}
               {!isInvestor && (
                 <div className="p-6 sm:p-8 border-b border-border">
                   <motion.button
@@ -296,7 +347,6 @@ const SearchDashboard = ({ userType }: SearchDashboardProps) => {
                 </div>
               )}
 
-              {/* Compatibility breakdown */}
               <div className="p-6 sm:p-8">
                 <p className="text-xs text-muted-foreground font-body mb-5">Compatibility Breakdown</p>
                 <div className="space-y-4">

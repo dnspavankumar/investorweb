@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
+import {
+  getFounderProfile,
+  getInvestorProfile,
+  saveFounderProfile,
+  saveInvestorProfile,
+  setOnboardingCompleted,
+} from "@/lib/firestore";
 
 const industries = [
   "FinTech", "HealthTech", "EdTech", "AgriTech", "SaaS",
@@ -33,8 +42,11 @@ const investorSteps = ["Basics", "Ticket Size", "Investment Thesis", "Preference
 
 const OnboardingForm = ({ userType }: OnboardingFormProps) => {
   const navigate = useNavigate();
+  const { user, userProfile, loading: authLoading, refreshUserProfile } = useAuth();
+  const currentUser = user || auth.currentUser;
   const isInvestor = userType === "investor";
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   const steps = isInvestor ? investorSteps : startupSteps;
   const totalSteps = steps.length;
@@ -58,6 +70,61 @@ const OnboardingForm = ({ userType }: OnboardingFormProps) => {
     diligenceTimeframe: "",
     regionalFocus: [] as string[],
   });
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!currentUser) {
+      navigate(`/login?role=${userType}`);
+      return;
+    }
+
+    if (userProfile?.role && userProfile.role !== userType) {
+      navigate(userProfile.role === "investor" ? "/investor/dashboard" : "/startup/dashboard");
+    }
+  }, [authLoading, currentUser, userProfile, userType, navigate]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const loadExistingProfile = async () => {
+      if (isInvestor) {
+        const existing = await getInvestorProfile(currentUser.uid);
+        if (!existing) return;
+
+        setInvestorForm({
+          firmName: existing.firmName || "",
+          minTicket: existing.minTicket || "",
+          maxTicket: existing.maxTicket || "",
+          thesis: existing.thesis || "",
+          coInvestment: existing.coInvestment || "",
+          valueAdd: existing.valueAdd || [],
+          preferredSectors: existing.preferredSectors || [],
+          stage: existing.stage || "",
+          antiPortfolio: existing.antiPortfolio || "",
+          diligenceTimeframe: existing.diligenceTimeframe || "",
+          regionalFocus: existing.regionalFocus || [],
+        });
+        return;
+      }
+
+      const existing = await getFounderProfile(currentUser.uid);
+      if (!existing) return;
+
+      setStartupForm({
+        name: existing.name || "",
+        description: existing.description || "",
+        industry: existing.industry || "",
+        stage: existing.stage || "",
+        funding: existing.funding || "",
+        location: existing.location || "",
+      });
+    };
+
+    loadExistingProfile().catch(() => {
+      toast.error("Unable to load your profile right now.");
+    });
+  }, [currentUser, isInvestor]);
 
   const updateStartup = (key: string, value: string) =>
     setStartupForm((prev) => ({ ...prev, [key]: value }));
@@ -95,21 +162,44 @@ const OnboardingForm = ({ userType }: OnboardingFormProps) => {
     }
   };
 
-  const handleSubmit = () => {
-    if (isInvestor) {
-      sessionStorage.setItem("investor_profile", JSON.stringify(investorForm));
-      toast.success("Profile saved successfully!");
-      navigate("/investor/dashboard");
-    } else {
-      sessionStorage.setItem("startup_profile", JSON.stringify(startupForm));
-      toast.success("Profile saved successfully!");
+  const handleSubmit = async () => {
+    if (!currentUser) {
+      toast.error("Please sign in to continue.");
+      navigate(`/login?role=${userType}`);
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      if (isInvestor) {
+        await saveInvestorProfile(currentUser.uid, investorForm);
+        await setOnboardingCompleted(currentUser.uid, true);
+        await refreshUserProfile();
+        toast.success("Investor profile saved successfully!");
+        navigate("/investor/dashboard");
+        return;
+      }
+
+      await saveFounderProfile(currentUser.uid, startupForm);
+      await setOnboardingCompleted(currentUser.uid, true);
+      await refreshUserProfile();
+      toast.success("Founder profile saved successfully!");
       navigate("/startup/dashboard");
+    } catch (error) {
+      toast.error("Unable to save profile right now. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const nextStep = () => {
-    if (step < totalSteps - 1) setStep(step + 1);
-    else handleSubmit();
+  const nextStep = async () => {
+    if (step < totalSteps - 1) {
+      setStep(step + 1);
+      return;
+    }
+
+    await handleSubmit();
   };
   const prevStep = () => { if (step > 0) setStep(step - 1); };
 
@@ -537,16 +627,18 @@ const OnboardingForm = ({ userType }: OnboardingFormProps) => {
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
             onClick={nextStep}
-            disabled={!canProceed()}
+            disabled={!canProceed() || submitting}
             className={`w-full flex items-center justify-center gap-2 font-display font-semibold text-sm py-4 rounded-xl transition-all ${
-              canProceed()
+              canProceed() && !submitting
                 ? isInvestor
                   ? "bg-accent text-accent-foreground glow-gold hover:brightness-110"
                   : "bg-primary text-primary-foreground glow-emerald hover:brightness-110"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
-            {step === totalSteps - 1 ? (
+            {submitting ? (
+              <>Saving profile...</>
+            ) : step === totalSteps - 1 ? (
               <>Complete & Find Matches</>
             ) : (
               <>Continue <ArrowRight className="w-4 h-4" /></>
